@@ -1,0 +1,63 @@
+Index: bcm-kbp-linux-modules/sdk/src/soc/kbp/alg_kbp/xpt/pcie/device_driver/kbp_driver.c
+===================================================================
+--- bcm-kbp-linux-modules.orig/sdk/src/soc/kbp/alg_kbp/xpt/pcie/device_driver/kbp_driver.c
++++ bcm-kbp-linux-modules/sdk/src/soc/kbp/alg_kbp/xpt/pcie/device_driver/kbp_driver.c
+@@ -301,7 +301,11 @@ static int parse_pcie_mapping(char *pci_
+                 pci_map = kmalloc(sizeof(*pci_map), GFP_KERNEL);
+                 if (!pci_map)
+                     return -ENOMEM;
+-                strncpy(pci_map->bus_name, next_tok, i);
++                if (i >= sizeof(pci_map->bus_name)) {
++                    kfree(pci_map);
++                    return -EINVAL;
++                }
++                memcpy(pci_map->bus_name, next_tok, i);
+                 pci_map->bus_name[i] = '\0';
+ 
+                 /*
+@@ -486,14 +490,11 @@ static int kbp_pci_probe(struct pci_dev
+         return -EINVAL;
+     }
+ 
+-    if (!pci_set_dma_mask(kbp_dev, DMA_BIT_MASK(64))) {
+-        pci_set_consistent_dma_mask(kbp_dev, DMA_BIT_MASK(64));
++    if (!dma_set_mask_and_coherent(&kbp_dev->dev, DMA_BIT_MASK(64))) {
+         KBP_INFO(": 64b DMA capable\n");
+-    } else if (!pci_set_dma_mask(kbp_dev, DMA_BIT_MASK(32))) {
+-        pci_set_consistent_dma_mask(kbp_dev, DMA_BIT_MASK(32));
++    } else if (!dma_set_mask_and_coherent(&kbp_dev->dev, DMA_BIT_MASK(32))) {
+         KBP_INFO(": 32b DMA capable\n");
+-    } else if (!pci_set_dma_mask(kbp_dev, DMA_BIT_MASK(24))) {
+-        pci_set_consistent_dma_mask(kbp_dev, DMA_BIT_MASK(24));
++    } else if (!dma_set_mask_and_coherent(&kbp_dev->dev, DMA_BIT_MASK(24))) {
+         KBP_INFO(": 24b DMA capable\n");
+     } else {
+         KBP_INFO(": Not suitable for DMA\n");
+@@ -911,7 +912,7 @@ static int kbp_device_info_show(struct s
+ 
+ static int kbp_device_open(struct inode *inode, struct file *file)
+ {
+-    struct kbp_device *dev = PDE_DATA(inode);
++    struct kbp_device *dev = pde_data(inode);
+ 
+     if (dev == NULL)
+         return -EINVAL;
+@@ -1125,8 +1126,7 @@ static int kbp_device_mmap(struct file *
+ 
+     /*KBP_INFO(":mmap The file reference count is %ld\n", file_p->f_count.counter); */
+ 
+-    vm_p->vm_flags |= VM_RESERVED;
+-    vm_p->vm_flags |= VM_IO;
++    vm_flags_set(vm_p, VM_RESERVED | VM_IO);
+     cacheable = 1;
+     phy_addr = device->sysmem_base;  // DMA memory as default
+ 
+@@ -1164,7 +1164,7 @@ static int kbp_device_mmap(struct file *
+ 
+ static int kbp_device_close(struct inode *inode, struct file *file)
+ {
+-    struct kbp_device *dev = PDE_DATA(inode);
++    struct kbp_device *dev = pde_data(inode);
+     int chl_id;
+ 
+     if (dev == NULL)
