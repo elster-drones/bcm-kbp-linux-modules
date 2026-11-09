@@ -1,3 +1,10 @@
+bcm-kbp-linux-modules (1.5.15.1-0vyatta1+elster2) unstable; urgency=medium
+
+  * Include the exact kernel package version in the module binary version,
+    so APT upgrades signed modules alongside same-ABI kernel updates.
+
+ -- OpenFactory <builds@openfactory.tech>  Mon, 09 Nov 2026 06:45:00 +0000
+
 bcm-kbp-linux-modules (1.5.15.1-0vyatta1+elster1) unstable; urgency=high
 
   * Port DMA masks, procfs data and VMA flags to Linux 7.3.
